@@ -1,3 +1,7 @@
+# Don't track lecture reccordings
+
+lecture_recordings/**
+
 # History files
 .Rhistory
 .Rapp.history
