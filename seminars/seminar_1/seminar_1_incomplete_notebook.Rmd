@@ -1,0 +1,71 @@
+---
+title: "Week 1 seminar"
+author:
+  - Prof. Joshua Loftus (lecturer)
+  - Shakeel GAvioli-Akilagun (GTA)
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+### Primer on the pipe operator 
+
+Create a varaible `xx` consisting of 10 uniform random varaibles.
+Compute the logarithm of `xx`, return suitably lagged and iterated difference. Do this with nested functions and with the pipe operator. 
+
+## Repeating the gapminder analysis
+
+Let's start easy by just repeating some steps but with data from a different year.
+
+### Create the `gapminder` scatterplot using data from the year 2002
+
+
+#### Create an lm model to predict lifeExp
+
+
+#### Create a loess model to predict lifeExp
+
+
+#### Plot showing the two models
+
+
+#### Now calculate the MSE for the two models 
+
+
+## Predicting on new data
+
+Models are supposed to capture/use structure in the data that corresponds to structure in the real world. And if the real world isn't misbehaving, that structure should be somewhat stable.
+
+For example, suppose the relationship changed dramatically from one time period to another time period. Then it would be less useful/interesting to have a model fit on data at one time period, because the same model might have a poor fit on data from a different time period.
+
+Let's explore this with our `gapminder` models
+
+#### Predictions on different years (1997 and 2007)
+
+Create datasets for the desired years
+
+
+Predict using `newdata` argument, then `pull` the residuals from the resulting data.frame
+
+
+#### Check the predictions on 1997
+
+
+#### Check the predictions on 2007
+
+One trade-off we see here: the `loess` function does not have any default way of extrapolating to observations outside the range of the original data (values of `gdpPercap` in 2007 that are larger than the maximum in 2002).
+
+## Conclusion/notes
+
+The more complex, `loess` model performs better than the linear model even when tested on data from 5 years earlier or later. Sometimes a more complex model really is better!
+
+
+## Extra (if time permits)
+
+#### Can we break the loess model by changing the span? 
+
+#### Can we change the linear model so it performs better? 
+
