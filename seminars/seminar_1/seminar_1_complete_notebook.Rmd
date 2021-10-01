@@ -1,0 +1,235 @@
+---
+title: "Week 1 seminar"
+author:
+  - Prof. Joshua Loftus (lecturer)
+  - Shakeel GAvioli-Akilagun (GTA)
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+### Primer on the pipe operator 
+
+Create a varaible `xx` consisting of 10 uniform random varaibles. Compute the logarithm of `xx`, return suitably lagged and iterated difference, then compute the exponential function and round the result. Do this with nested functions and with the pipe operator. 
+
+```{r}
+library(magrittr)
+
+xx <- runif(10)
+
+xx_no_pipes <- round(exp(diff(log(xx))),1) 
+
+xx_with_pipes <- xx %>% log() %>%
+  diff() %>% 
+  exp() %>% 
+  round(1)
+
+xx_no_pipes
+xx_with_pipes
+```
+
+Note the pipe operator allways passes the object to the **first** argument of the function to the right of the pipe operator. Tyr to understand why the following code breaks: 
+```{r}
+foo <- function(x = 5, y) return(x+y)
+
+xx <- 10 
+
+xx %>% foo()
+```
+
+## Repeating the gapminder analysis
+
+Let's start easy by just repeating some steps but with data from a different year.
+
+### Create the `gapminder` scatterplot using data from the year 2002
+
+```{r}
+library(gapminder)
+library(tidyverse)
+
+gapm_2002 <- gapminder %>%  
+  filter(year == 2002)
+
+gapm_2002_scatter <- ggplot(gapm_2002,
+                            aes(x = gdpPercap, y = lifeExp)) + 
+  geom_point()
+
+gapm_2002_scatter
+```
+
+#### Create an lm model to predict lifeExp
+
+That is find the fitted values $\hat{Y} = X \hat{\beta}$, where: 
+
+$$
+\hat{\beta} = (X'X)^{-1}X'Y
+$$
+
+```{r}
+library(broom)
+
+lm_2002 <- lm(lifeExp ~ gdpPercap, data = gapm_2002)
+lm_2002_predictions <- augment(lm_2002)
+
+glance(lm_2002)
+```
+
+#### Create a loess model to predict lifeExp
+
+```{r}
+loess_2002 <- loess(lifeExp ~ gdpPercap, data = gapm_2002)
+loess_2002_predictions <- augment(loess_2002)
+
+summary(loess_2002)
+```
+
+#### Make a plot showing the two model fits
+
+```{r}
+gapm_2002_scatter + 
+  geom_line(data = lm_2002_predictions, 
+            aes(y = .fitted),
+            linetype = "dashed") + 
+  geom_line(data = loess_1997_predictions,
+            aes(y = .fitted))
+```
+
+#### Now calculate the MSE for the two models 
+
+```{r}
+mean(lm_2002$residuals ** 2 )
+mean(loess_2002$residuals ** 2)
+```
+
+
+## Predicting on new data
+
+Models are supposed to capture/use structure in the data that corresponds to structure in the real world. And if the real world isn't misbehaving, that structure should be somewhat stable.
+
+For example, suppose the relationship changed dramatically from one time period to another time period. Then it would be less useful/interesting to have a model fit on data at one time period, because the same model might have a poor fit on data from a different time period.
+
+Let's explore this with our `gapminder` models
+
+#### Predictions on different years (1997 and 2007)
+
+Create datasets for the desired years
+
+```{r}
+gapm_1997 <- gapminder %>%  filter(year == 1997)
+gapm_2007 <- gapminder %>%  filter(year == 2007)
+```
+
+Predict using `newdata` argument, then `pull` the residuals from the resulting data.frame
+
+```{r}
+lm_1997_predictions <- augment(lm_2002, newdata = gapm_1997) 
+loess_1997_predictions <- augment(loess_2002, newdata = gapm_1997)
+
+ggplot(gapm_1997, 
+       aes(x = gdpPercap, y = lifeExp)) + 
+  geom_point() + 
+  geom_line(data = lm_1997_predictions, 
+            aes(y = .fitted), 
+            color = "red", 
+            linetype = "dashed") + 
+  geom_line(data = loess_1997_predictions, 
+            aes(y = .fitted), 
+            color = "red")
+```
+
+```{r}
+lm_2007_resids <- lm_2007_predictions %>% pull(.resid) 
+loess_2007_resids <- loess_2007_predictions %>% pull(.resid)
+
+lm_1997_resids <- lm_1997_predictions %>% pull(.resid) 
+loess_1997_resids <- loess_1997_predictions %>% pull(.resid)
+```
+
+
+#### Check the predictions on 1997
+
+```{r}
+mean(lm_1997_resids**2)
+mean(loess_1997_resids**2, na.rm = TRUE)
+```
+
+#### Check the predictions on 2007
+
+```{r}
+mean(lm_2007_resids**2)
+mean(loess_2007_resids**2, na.rm = TRUE)
+```
+
+One trade-off we see here: the `loess` function does not have any default way of extrapolating to observations outside the range of the original data (values of `gdpPercap` in 2007 that are larger than the maximum in 2002).
+
+## Conclusion/notes
+
+The more complex, `loess` model performs better than the linear model even when tested on data from 5 years earlier or later. Sometimes a more complex model really is better!
+
+
+## Extra (if time permits)
+
+#### Can we break the loess model by changing the span? 
+
+```{r}
+loess_2002_badspan <- loess(lifeExp ~ gdpPercap, data = gapm_2002, span = .1)
+loess_2002_badspan_predictions <- augment(loess_2002_badspan)
+
+loess_1997_badspan_predictions <- augment(loess_2002_badspan, newdata = gapm_1997)
+loess_2007_badspan_predictions <- augment(loess_2002_badspan, newdata = gapm_2007)
+```
+
+```{r}
+gapm_2002_scatter + 
+  geom_line(data = loess_2002_badspan_predictions, 
+            aes(y = .fitted), 
+            color = "blue")
+```
+
+
+
+```{r}
+mean(loess_1997_badspan_predictions$.resid ** 2)
+mean(lm_1997_predictions$.resid ** 2)
+```
+
+```{r}
+mean(loess_2007_badspan_predictions$.resid ** 2, na.rm = TRUE)
+mean(lm_2007_predictions$.resid ** 2)
+```
+
+#### Can we change the linear model so it performs better? 
+
+```{r}
+gapm_2002_log <- gapminder %>% 
+  filter(year == 2002) %>% 
+  mutate(log_gdpPercap = log(gdpPercap))
+
+gapm_2007_log <- gapminder %>% filter(year == 2007) %>%
+  mutate(log_gdpPercap = log10(gdpPercap))
+gapm_1997_log <- gapminder %>% filter(year == 1997) %>%
+  mutate(log_gdpPercap = log10(gdpPercap))
+```
+
+
+
+```{r}
+lm_2002_log <- lm(lifeExp ~ log_gdpPercap, data = gapm_2002_log)
+lm_2002_log_predictions <- augment(lm_2002_log)
+```
+
+```{r}
+mean(augment(lm_2002, newdata = gapm_1997_log)$.resid **2)
+mean(loess_1997_predictions$.resid ** 2)
+```
+
+```{r}
+mean(augment(lm_2002, newdata = gapm_2007_log)$.resid **2)
+mean(loess_1997_predictions$.resid ** 2)
+```
+
+
+
