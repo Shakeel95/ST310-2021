@@ -31,7 +31,7 @@ xx_no_pipes
 xx_with_pipes
 ```
 
-Note the pipe operator allways passes the object to the **first** argument of the function to the right of the pipe operator. Tyr to understand why the following code breaks: 
+Note the pipe operator allways passes the object to the **first** argument of the function to the right of the pipe operator. Try to understand why the following code breaks: 
 ```{r}
 foo <- function(x = 5, y) return(x+y)
 
