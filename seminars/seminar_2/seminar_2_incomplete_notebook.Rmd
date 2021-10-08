@@ -1,0 +1,185 @@
+---
+title: "Week 2 seminar"
+author:
+  - Prof. Joshua Loftus (lecturer)
+  - Shakeel GAvioli-Akilagun (GTA)
+output: html_document
+---
+
+```{r setup, message = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Start by loading the usual packages: 
+
+```{r, echo = FALSE}
+library(tidyverse)
+library(gapminder)
+library(broom)
+```
+
+# Some useful exercises from the lectures
+
+Prove the regression lines passes through the mean. That is: 
+
+$$
+\overline{y} = \sum_{j=1}^p \hat{\beta}_j\overline{x}_j  
+$$
+
+Prove the conditional expectation minimizes the squared error loss. That is $E(Y|X) = g^*(X)$ where $g^*$ is given as follows: 
+
+$$
+g^*(x) = {\arg\min}_{g(X)}  E \{ (Y - g(X))^2 \} 
+$$
+
+
+# Linear regression
+
+## Simple linear regression
+
+### Estimation
+
+We will use the example from the previous seminar of regressing life expectancy on GDP per capita using the Gap Minder dataset. 
+
+```{r}
+# fit linear model 
+```
+
+
+### Demo dplyr::summaries function
+
+In a simple linare regression model we have the following facts which allows us to compute the intercept and slope from the data directly: 
+
+* Slope = $cor(x,y) * sd(y) / sd(x)$
+* Regression line passes through $(mean(x), mean(y))$
+
+```{r}
+# calculate coefs from data
+```
+
+### Inference
+
+One of the *selling points* of statistics over other disciplines which develop methods for analysing data (applied maths, computer science, etc.) is the statistician's ability to quantify the uncertainty regarding the procedure applied to the data. 
+
+How can we do this in base R for our linear model?  
+
+$$
+y_i = \beta_0 + \beta_1 x_i + \epsilon_i  
+$$
+
+```{r}
+# summarize lm
+```
+
+
+The poulation quantitiies are given by (ISLR 3.8): 
+
+$$
+se(\hat{\beta}_1) = 
+$$
+and
+
+$$
+se(\hat{\beta_0}) = 
+$$
+
+We will be interested in quantifying uncertainty about the slope. The sample counterpart is given given by: 
+
+
+$$
+\widehat{se(\beta_0)} = 
+$$
+
+with $\hat{\sigma}$ given by (ISLR 3.15): 
+
+$$
+\hat{\sigma} = 
+$$
+
+We can compute the estimated standard error directly from the `lm` object using the `summarize` command: 
+
+```{r}
+# compute se from lm object 
+```
+
+### Model diagnostics
+
+#### The $R^2$
+
+The $R^2$ is generally interpreted as the "proportion of variance in outcome **explained** by simple linear regression model", i.e.
+
+$$
+R^2 = \text{cor}(x,y)^2
+$$
+
+We can compute this quantity from the data: 
+
+```{r}
+# compute R2 from data 
+```
+
+Alterbatively, the $R^2$ can be written as: 
+
+$$
+R^2 = 1 - \frac{\text{RSS}}{\text{TSS}} 
+$$
+
+Again, we can compute this quantity from the data: 
+
+```{r}
+# compute again from data 
+```
+
+
+### Diagnostic plots
+
+Idea: look for patterns in residuals, which could indicate systemic error (bias)
+
+```{r}
+# plot predictor against residuals
+```
+
+Other diagnostics which can be checked automatically in base R: 
+
+**QQ Plot** Checking for (approximate) normality with quantile-quantile plot
+
+**Leverage** weighted distance between $x_i$ and the mean of all $x$'s
+
+
+```{r}
+# plot lm object
+```
+
+[**Cook's distance**](https://en.wikipedia.org/wiki/Cook%27s_distance), `cooksd` in the plots, measures how much the predictions for all other observations change if we leave out one observation
+
+```{r}
+# use ggnostics  
+```
+
+Finally, we can visualize confidence intervals around fitted parameters with the `ggcoef` function: 
+
+```{r}
+# use ggcoef 
+```
+
+**Question**: with flexible models, are influential observations more or less harmful, and in which ways?
+
+## Multiple regression 
+
+(Using your own data)
+
+### Estimation
+
+
+### Inference
+
+
+### Diagnostics
+
+e.g. `ggpairs` shows many 2-dimensional projections of the data, but there is no guarantee that these projections together help us understand higher dimensional relationships... including possibly higher dimensional patterns in the residuals
+
+
+### Problem: high dimensional plots...
+
+**Question**: What does this mean for diagnostic plots when our regression model is high dimensional (e.g. p > 3 predictors)
+
