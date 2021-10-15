@@ -1,0 +1,351 @@
+---
+title: "Week 3 seminar"
+author:
+  - Prof. Joshua Loftus (lecturer)
+  - Shakeel GAvioli-Akilagun (GTA)
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(broom)
+library(modeldata)
+```
+
+## Categorical outcome data
+
+We will use the `attrition` dataset. This is a synthetic dataset created by IBM data scientists in the 1970s for uncovering "he factors that lead to employee attrition". The dataset lives in the `modeldata` package. Load the data and have a look at the first few rows: 
+
+```{r}
+data(attrition)
+head(attrition)
+```
+
+At the end of the seminar we will fit a model to describe the attrition rate of IMB employees. Compare visually the distribution of a numeric predictor variable between the two outcome classes
+
+```{r}
+ggplot(attrition, aes(Attrition, TotalWorkingYears)) + 
+  geom_boxplot()
+```
+
+Perform a two sample t-test for a difference in means. In base R this can be done using the `t.test` function. What is the outcome of your test at the 95% confidence level? 
+
+```{r}
+t.test(TotalWorkingYears ~ Attrition, data = attrition)
+```
+
+Look at the `Attrition` varaible, are the classes balanced? 
+
+```{r}
+attrition %>% count(Attrition) 
+table(attrition$Attrition) # base R
+```
+
+Create a balanced dataset with the same number of observations in both classes
+
+```{r}
+attrition_no <- attrition %>%
+  filter(Attrition == "No") %>%
+  sample_n(size = 237)
+
+attrition_yes <- attrition %>%
+  filter(Attrition == "Yes")
+
+attrition_balanced <- rbind(attrition_no, attrition_yes)
+```
+
+
+## Classification: linear regression?
+
+Can we do classification with a simple linear regression? Create a new dataset consisting of your numeric predictor and the response varaible transformed to be numeric:
+
+
+```{r}
+attrition_numeric_balanced <- attrition_balanced %>% 
+  mutate(Y = as.numeric(Attrition) - 1) %>%
+  select(Y, TotalWorkingYears)
+
+head(attrition_numeric_balanced)
+
+ggplot(attrition_numeric_balanced, 
+       aes(y = Y, x = TotalWorkingYears)) + 
+  geom_point()
+```
+
+Fit a simple linear regression to this dataset. Plot the fitted line however you see fit. Does the relationship your model implies make sense?
+
+```{r}
+lm_attrition_working <- lm(Y ~ TotalWorkingYears, data = attrition_numeric_balanced)
+
+ggplot(attrition_numeric_balanced, 
+       aes(y = Y, x = TotalWorkingYears)) + 
+  geom_point() + 
+  geom_line(data = augment(lm_attrition_working), 
+            aes(y = .fitted), 
+            colour = "red", 
+            size = 1)
+```
+
+Ok, now lets use the regression model for classification. We cand do this with a simple thresholding rule: 
+
+$$
+\hat{z}_i = \begin{cases}
+0 &  \hat{\alpha} + \hat{\beta} x_i < c \\ 
+1 & \text{ else } 
+\end{cases}
+$$
+
+Plot linear regression line, change the threshold
+
+```{r}
+ggplot(attrition_numeric_balanced, 
+       aes(y = Y, x = TotalWorkingYears)) + 
+  geom_point() + 
+  geom_line(data = augment(lm_attrition_working), 
+            aes(y = .fitted), 
+            colour = "red", 
+            size = 1) + 
+  geom_hline(yintercept = 0.25, 
+             colour = "blue", 
+             )
+```
+
+Note, an alternative to fixing the class imbalance problem is to simply adjust the threshold. Let's see how that would work by fitting the same regression to the full dataset. 
+
+```{r}
+attrition_numeric <- attrition %>% 
+  mutate(Y = as.numeric(Attrition) - 1)
+
+lm_attrition_working_full <- lm(Y ~ TotalWorkingYears, data = attrition_numeric)
+
+ggplot(attrition_numeric, 
+       aes(y = Y, x = TotalWorkingYears)) + 
+  geom_point() + 
+  geom_line(data = augment(lm_attrition_working_full), 
+            aes(y = .fitted), 
+            colour = "red", 
+            size = 1) + 
+  geom_hline(yintercept = .001, colour = "blue")
+```
+
+Why might it not be a good idea to use a linear regression for this task? 
+  * Our model can predict outside 0-1 range
+  * Not directly interpretable as probabilities
+
+### Thresholding ideas
+
+Choose a threshold/cutoff value for predictor $X$, say $c$, and then classify
+
+- $\hat Y = 1$ if $X \geq c$
+- $\hat Y = 0$ otherwise
+
+Or if the association is negative, change the sign
+
+As we vary $c$, we trade-off between kinds of errors: false positives and false negatives
+
+In the simple case with thresholding one predictor, the classification/decision rules are all equivalent whether we use linear regression or logistic regression (as long as the fitted relationship is monotone)
+
+For **multiple** regression--when we have more predictors--we can then transform a numeric prediction from the model $\hat Y$ to a classification by using a threshold rule on the scale of the predictions (instead of on the scale of one predictor as before)
+
+- $\hat Y = 1$ if $x^T \hat \beta \geq c$
+- $\hat Y = 0$ otherwise
+
+## Logistic regression
+
+The main idea is to model conditional probabilities using the **logistic function**: 
+
+$$
+P(Y = 1 \mid X = x ) = \frac{\exp(\beta_0 + \beta_1 x)}{1 + \exp(\beta_0 + \beta_1 x)}
+$$
+
+Alternatively, we may write:
+
+$$
+\text{logistic}[P(Y=1 \mid X = x )] = \beta_0 + \beta_1 x 
+$$
+
+Fit a logistic regression to the same variables you used in the previous section. Plot the results and comment on any differences: 
+
+```{r}
+glm_attrition_working <- glm(Y ~ TotalWorkingYears, data = attrition_numeric_balanced, family = "binomial")
+
+ggplot(attrition_numeric_balanced, 
+       aes(y = Y, x = TotalWorkingYears)) + 
+  geom_point() + 
+  geom_line(data = augment(glm_attrition_working,  type.predict = "response"),
+            aes(y = .fitted), 
+            colour = "red")
+```
+
+Call the `summary` function on your model. What are the similarities and differences as compared to what you would expect to see from an `lm` object? 
+
+```{r}
+summary(glm_attrition_working)
+```
+
+### Interpreting coefficients
+
+The linear component of the logistic regression is interpretable as a "log-odds" ratio. That is, writing $p(x) = P (Y = 1 \mid X = x)$ we have: 
+
+$$
+\log \left ( \frac{p(x)}{1-p(x)} \right ) = \beta_0 + \beta_1 x   
+$$
+
+Exponentiating coefficients gives an interpretation in terms of the multiplicative change in the odds of belonging to one of the two classes. Have a go interpreting your model:  
+
+```{r}
+exp(coef(glm_attrition_working))
+```
+
+### Inference
+
+Since we estimated 
+
+```{r}
+exp(confint(glm_attrition_working))
+```
+
+Model evaluation measures
+
+```{r}
+glance(glm_attrition_working)
+```
+
+Diagnostic plots: can do this but less common, harder to interpret "deviance residuals"
+
+(Warning: residual plots almost always show "patterns", can't be interpreted the same way as for linear regression)
+
+## Balance and (re)calibration
+
+What portion of data are classified using a given cutoff for the predicted probability?
+
+```{r}
+mean(predict(glm_attrition_working, type = "response") > 0.5)
+```
+
+Write a function to tabulate a confusion matrix (using dplyr functions)
+
+```{r}
+get_confusion_matrix <- function(fitted_glm, cutoff = .5) 
+  {
+  #' Get confusion matrix from fitted glm
+  #'
+  #'@param fitted_glm
+  #'@param cutoff 
+  
+  confusion_matrix <- augment(fitted_glm, type.predict = "response") %>%
+    mutate(Yhat = as.numeric(.fitted > cutoff)) %>%
+    count(Y, Yhat)
+  
+  return(confusion_matrix)
+}
+```
+
+Apply your function to the estimated gm we have been using throughout the notebook. 
+
+```{r}
+get_confusion_matrix(glm_attrition_working)
+```
+
+
+## Simulation
+
+Write a function like `y = f(x) + noise` to generate data (with sample size as an input to the function)
+
+Start with a linear function and Gaussian noise
+
+```{r}
+gg <- function(x) 1 - 2*x
+
+simulate_df_one_pred <- function(nn, ff)
+{
+  #' Simulates from the model `y = f(x) + noise`
+  #'
+  #'@param nn int, the sample size
+  #'@param ff function of one argment which returns a float
+  
+  xx <- runif(nn)
+  
+  noise <- rnorm(nn)
+  
+  yy <- ff(xx) + noise
+  
+  return(data.frame(x = xx, y = yy))
+}
+```
+
+Simulate one dataset with a sample size of 20, fit a linear regression model, and extract the slope estimate
+
+```{r}
+
+simulated_df <- simulate_df_one_pred(nn = 20, ff = gg)
+
+lm_simulated <- lm(y ~ x, data = simulated_df)
+
+coef(lm_simulated)[2]
+```
+
+Repeat this 100 times using `replicate()`, plot a histogram of the coefficient estimates, add a `geom_vline` at the true coefficient value. Increase the sample size and try again
+
+```{r}
+replicate(100, coef(lm(y ~ x, data = simulate_df_one_pred(nn = 20, ff = gg)))[2]) %>%
+  qplot() + geom_vline(xintercept = -2)
+```
+
+
+### Complexity the above
+
+(Complete outside of class time unless time permits)
+
+Now try making `hh` a function of two variables, where `x1` and `x2` are both (possibly noisey) functions of a hidden variable `uu`. 
+
+What are the true coefficients? How do we interpret them? What happens if we regress on only `x1` or only `x2`? What would be the change in outcome if we could intervene on `x1` (erasing the influence of `uu` on `x1` but keeping it for `x2`)? What if we could intervene on `uu`?
+
+```{r}
+
+hh <- function(x1, x2) 5 + 2 * x1 - 7 * x2
+
+simulate_df_two_pred <- function(nn, ff) 
+{
+  #' Simulates from the model `y = f(x1, x2) + noise`
+  #'
+  #'@param nn int, the sample size
+  #'@param ff function of two argments which returns a float
+  
+  uu <- rnorm(nn)
+  
+  x1 <- 3*uu + rnorm(nn)
+  
+  x2 <- 15 - 7*uu + rnorm(nn)
+  
+  yy <- ff(x1, x2) + rnorm(nn)
+  
+  return(data.frame(x1 = x1, x2 = x2, y = yy))
+}
+```
+
+```{r}
+replicate(100, coef(lm(y ~ x1 + x2, data = simulate_df_two_pred(nn = 1000, ff = hh)))[2]) %>%
+  qplot() + geom_vline(xintercept = 2)
+```
+
+
+If we regress on only one at a time the estimates can be biased (omitted variable bias)
+
+If we could intervene on `x1` directly then `beta1` (the true value, not the estimate) would tell us the causal effect on the outcome
+
+If we could intervene on `u` then the total effect on `y` would involve both `beta1` and `beta2`, as well as the coefficients of `u` on both `x1` and `x2`
+
+e.g. increasing `u` by 1 would make `x1` increase by 3 and `x2` decrease by 7, hence `y` would change by `3*beta - 7*beta2`
+
+### Extra practice
+
+(Complete outside of class time unless time permits)
+
+* Repeat the previous simulations but generate a binary outcome and use logistic regression to estimate coefficients
+
+
