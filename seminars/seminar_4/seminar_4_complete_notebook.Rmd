@@ -193,7 +193,7 @@ least_squares_gradient(X,y,beta)
 ```{r}
 step_size <- .001
 init_step <- .001
-max_steps <- 100
+max_steps <- 25
 
 loss_values <- c()
 all_steps <- 1:2
@@ -339,7 +339,7 @@ while (prev_loss - next_loss > min_decrease & n_steps < max_steps)
 {
   next_grad <- least_squares_gradient(X,y, prev_beta)
   loc_step <- Barzilai_Borwein_step(next_beta, prev_beta, next_grad, prev_grad)
-  next_beta <- prev_beta - step_size * next_grad
+  next_beta <- prev_beta - loc_step * next_grad
   
   prev_beta <- next_beta 
   prev_loss <- next_loss
@@ -437,7 +437,7 @@ y <- rbinom(nn, 1, px)
 First implement the logistic regression loss function, that is: 
 
 $$
-\ell (\beta) = \sum_{i=1}^n \left \{ y_i \log \left ( \frac{1}{1+e^{-x_i'\beta}} \right ) + (1-y_i) \log \left ( 1 - \frac{1}{1+e^{-x_i'\beta}}\right ) \right \}
+\ell (\beta) = - \sum_{i=1}^n \left \{ y_i \log \left ( \frac{1}{1+e^{-x_i'\beta}} \right ) + (1-y_i) \log \left ( 1 - \frac{1}{1+e^{-x_i'\beta}}\right ) \right \}
 $$
 
 ```{r}
