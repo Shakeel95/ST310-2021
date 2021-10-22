@@ -1,5 +1,5 @@
 # Seminar 4
 
-Something strange happened in last week's seminar... 12 people signed the attendance sheet but the GitHub repo only had 10 unique views.
+* Please record your attendance [here](https://forms.office.com/Pages/ResponsePage.aspx?id=_epnVXfnpUKRu5RA_UO4k2iqStX41KNDpkUzhjwCGeNUN01TOTFTWVc0VTVMN0czNExWOUZCMVdZRi4u).
 
-![unique_views](unique_views.jpg)
+* If you would like to you may fill out an anonymous survey on the seminars; you can find the link [here](https://forms.office.com/Pages/ResponsePage.aspx?id=_epnVXfnpUKRu5RA_UO4k2iqStX41KNDpkUzhjwCGeNUQ0VBRVpOWFI3T1ZYR0hUR09TT0MzNUtQQi4u)

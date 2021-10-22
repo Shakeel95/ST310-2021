@@ -1,0 +1,405 @@
+---
+title: "Week 4 seminar"
+author:
+  - Prof. Joshua Loftus (lecturer)
+  - Shakeel GAvioli-Akilagun (GTA)
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Please load these packages before we start: 
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse) 
+library(broom)     
+library(modelr)    
+library(GGally)
+```
+
+**Important!** We will be doing some simulations in this seminar; set a seed to make sure your work is reproducible. 
+
+```{r}
+set.seed(42)
+```
+
+
+# 1-d smooth regression example
+
+## Example data
+
+Take the standard 1-d regression problem: 
+
+$$
+Y = f(X) + \varepsilon
+$$
+
+**Task**: we will take a setting in which the conditional expectation $E(Y|X=x)$ is a non-linear function, and will attempt to recover this function using OLS. We will use: 
+
+$$
+E(Y \mid X = x ) = x \sin \left ( \frac{1}{x^2} \right )
+$$
+
+```{r}
+ff <- function(x) 
+```
+
+Write some R code to simulate data from this model when $\varepsilon \sim N(0, \sigma^2)$, then plot your data with a loess smoother using `ggplot`. Experiment with: 
+
+  * Changing the noise level $\sigma$
+  * Changing the sample size `nn`
+
+```{r}
+
+```
+
+We would like to fit a linear model to our data which captures the face that the conditional expectation function is non-linear in $x$. Try regressing $y$ on a polynomial transform of $x$.
+
+
+```{r}
+
+```
+
+To visualize our fit it is useful to generate an evenly spaced grid of points from the data. We can do this with the `data_grid` function in the `modelr` library: 
+
+```{r}
+
+```
+
+Two problems are evident: 
+
+* **Problem 1:** ???
+
+* **Problem 2:** ???
+
+## Gradient descent
+
+Goal: implement gradient descent and use it to solve for the coefficients of the above linear model. We will be evaluating our results multiple times, so write the following functions: 
+
+1. A function which takes in a vector of loss values and returns a plot
+2. A function which takes in three vectors of parameters (truth, estimate, OLS) and returns a data frame. 
+
+```{r}
+
+plot_loss <- function(loss_values, steps_taken)
+{
+  #' Plot loss function by steps taken
+  #'
+  #'@param loss_values vector
+  #'@param steps_taken vector
+  
+}
+
+compare_estimates <- function(true_param, estimated_param, X, y)
+{
+  #' Compares own estimator with the truth and with OLS
+  #'
+  #'@param true_param vector, dim = (p x 1) 
+  #'@param estimated_param vector, dim = (p x 1)
+  #'@param X matrix, dim = (n x p)
+  #'@param y vector, dim = (n x 1)
+  
+}
+
+```
+
+
+### Step 1: write functions to output the least squares loss and its gradient
+
+Recall: the least squares loss function is as follows: 
+
+$$
+L(\beta) = \left \| Y - X \beta \right \|_2^2 = (Y - X \beta)'(Y - X \beta)  
+$$
+
+Therefore: the gradient may be written as follows: 
+
+$$
+???
+$$
+
+```{r}
+least_squares_loss <- function(X, Y, beta)
+{
+  #' Returns least squares loss
+  #'
+  #'@param X matrix, dim = (n x p)
+  #'@param y vector, dim = (n x 1)
+  #'@param beta vector, dim = (p x 1)
+
+}
+
+least_squares_gradient <- function(X,Y, beta)
+{
+  #' Returns least squares gradient
+  #'
+  #'@param X matrix, dim = (n x p)
+  #'@param y vector, dim = (n x 1)
+  #'@param beta vector, dim = (p x 1)
+
+}
+```
+
+Now simulate some data and check that your function behaves as it you expect. In particular you should check: 
+
+* The dimensions of the output
+* The values of the outputs
+
+```{r}
+
+```
+
+### Step 2: write a loop to take multiple steps in the direction of the negative gradient, keeping the step size fixed
+
+```{r}
+step_size <- NULL
+init_step <- NULL
+max_steps <- NULL
+
+loss_values <- c()
+all_steps <- 1:2
+n_steps <- 2
+
+while () 
+{
+
+}
+
+```
+
+Inspect visually how the value of your loss function changes over the iterations. Also, check how close the parameter obtained through optimization is to the true parameter as well as to the estimate we would have obtained using the `lm` function (i.e. via OLS).
+
+```{r}
+
+```
+
+
+### Step 3: write a function to step in the direction of the negative gradient until the loss function no longer decreases by a certain amount, keeping step size fixed
+
+```{r}
+step_size <- NULL
+init_step <- NULL
+min_decrease <- NULL
+max_steps <- NULL
+
+loss_values <- c()
+all_steps <- 1:2
+n_steps <- 2
+
+while () 
+{
+
+}
+```
+
+Again, inspect visually how your loss function behaves and check the value of your parameter estimate. 
+
+```{r}
+
+```
+
+
+### Step 5: use the Barzilai-Borwein method to choose step size
+
+See https://en.wikipedia.org/wiki/Gradient_descent
+
+$$
+\gamma_n = \frac{\left | (\beta_n - \beta_{n-1})'(\nabla L(\beta_n) - \nabla L(\beta_{n-1})) \right |}{\left \| \nabla L(\beta_n) - \nabla L(\beta_{n-1}) \right \|_2^2}
+$$
+
+First, implement a function for finding the step size: 
+
+```{r}
+Barzilai_Borwein_step <- function(next_beta, prev_beta, next_grad, prev_grad)
+{
+  #' Computes step size using the Barzilai-Borwein method
+  #'
+  #'@param next_beta vector, dim = (p x 1)
+  #'@param prev_beta vector, dim = (p x 1)
+  #'@param next_grad vector, dim = (p x 1)
+  #'@param prev_grad vector, dim = (p x 1)
+  
+}
+```
+
+Now modify the code from the previous section so that the step size is adjusted with each iteration
+
+```{r}
+step_size <- NULL
+init_step <- NULL
+min_decrease <- NULL
+max_steps <- NULL
+
+loss_values <- c()
+all_steps <- 1:2
+n_steps <- 2
+
+while () 
+{
+
+}
+```
+
+Again, inspect visually how your loss function behaves and check the value of your parameter estimate. 
+
+```{r}
+
+```
+
+
+### Step 6: keeping a fixed step size implement (mini-batch?) stochastic gradient descent
+
+```{r}
+step_size <- NULL
+init_step <- NULL
+min_decrease <- NULL
+max_steps <- NULL
+
+batch_size <- 2
+
+loss_values <- c()
+all_steps <- 1:2
+n_steps <- 2
+
+while () 
+{
+
+}
+```
+
+Again, inspect visually how your loss function behaves and check the value of your parameter estimate. 
+
+```{r}
+```
+
+# Classification example
+
+## Generate some data
+
+Which predictors have nonzero coefficients?
+
+```{r}
+nn <- 100 
+pp <- 10
+sparsity <- 2
+
+X <- matrix(rnorm(nn*pp), nrow = nn)
+
+beta <- c(rep(1, sparsity), rep(0, pp - sparsity))
+
+mu <- X %*% beta
+px <- exp(mu)/(1+exp(mu))
+y <- rbinom(nn, 1, px)
+```
+
+## Implement gradient descent for the logistic regression
+
+First implement the logistic regression loss function, that is: 
+
+$$
+???
+$$
+
+```{r}
+logistic_log_likelihood <- function(X, y, beta)
+{
+  #' Computes the logistic log-likelihood function
+  #'
+  #'@param y vector, dim = (n x 1)
+  #'@param X matrix, dim = (n x p) 
+  #'@param beta vector, dim = (p x 1)
+
+}
+```
+
+Next, write a function for finding the derivative of a function numberically. Recall the definition of a derivative... 
+
+$$
+???
+$$
+
+```{r}
+secant_numerical_derivative <- function(X, y, beta, ff)
+{
+  #' Finds vector of partial derivatives using the secant method
+  #'
+  #'@param X matrix, dim = (n x p)
+  #'@param y vector, dim = (n x 1)
+  #'@param beta vector, dim = (p x 1)
+  #'@param ff function, (X, y, beta) \mapsto R^+
+  
+  
+}
+```
+
+Use the functions we have just defined to implement gradient descent for the logistic regression problem. 
+
+```{r}
+step_size <- NULL
+init_step <- NULL
+min_decrease <- NULL
+max_steps <- NULL
+
+loss_values <- c()
+all_steps <- 1:2
+n_steps <- 2
+
+
+while () 
+{
+
+}
+```
+
+Plot your loss function: 
+
+```{r}
+
+```
+
+### Check answer with results from `glm` (if possible, when p < n)
+
+```{r}
+
+```
+
+# Extra practice
+
+## High dimensional regression and SGD
+
+Generate data some high dimensional data: 
+
+```{r}
+nn <- 100
+pp <- 200
+sparsity <- 3
+
+X <- matrix(rnorm(nn*pp), nrow = nn)
+beta <- c(rep(1, sparsity), rep(0, pp - sparsity))
+y <- X %*% beta
+
+train_hd <- data.frame(y = y, x = x)
+```
+
+```{r}
+train_hd %>% 
+  select(y, num_range("x.", 1:6)) %>%
+  ggpairs(progress = F)
+```
+
+
+Question: does it converge? There is no unique solution for least squares in high dimensional regression.
+
+### Even more extra practice! 
+
+- Modify the least squares loss function by adding a penalty on the coefficients, e.g. loss = MSE + L*beta^2, where L is a non-negative constant. Compute the new gradient and implement SGD with this loss function. Try various values of L on the same dataset, and implement "tuning" to find the best value of L 
+
+- Implement SGD for logistic and hinge loss functions, and try it out on some examples of data that you generate where you know the true answer
+
+# References
+
+- https://mlstory.org/optimization.html for gradient descent, stochastic gradient descent, SGD quick start guide
+- https://en.wikipedia.org/wiki/Numerical_differentiation for symmetric difference quotient, step size
+- Type `.Machine` in the console and look for `double.eps`
