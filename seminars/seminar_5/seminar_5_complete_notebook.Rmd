@@ -1,0 +1,293 @@
+---
+title: "Week 5 seminar"
+author:
+  - Prof. Joshua Loftus (lecturer)
+  - Shakeel GAvioli-Akilagun (GTA)
+output: pdf_document
+---
+
+```{r setup, message = FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Please load the following packages before we start. You may need to install `glmnet`. 
+
+```{r, include=FALSE}
+library(tidyverse)
+library(broom)
+library(glmnet)
+```
+
+**Important!** We will be doing some simulations in this seminar; set a seed to make sure your work is reproducible.  
+
+```{r}
+set.seed(42)
+```
+
+(Bonus question: why is 42 the best seed?)
+
+![source: @jakevdp ](seed_frequency.png)
+
+# High-dimensional regression
+
+Generate some data from a high-dimensional model; experiment with changing `pp` and `nn`. 
+
+```{r}
+nn <- 100
+pp <- 50
+
+X <- matrix(rnorm(nn*pp), nrow = nn)
+ee <- rnorm(nn)
+beta <- rpois(pp, lambda = 1)
+
+y <- X %*% beta + ee
+```
+
+## Ridge regression with `glmnet`
+
+We will study ridge regression in more detail soon\*. For now you only need to know it's a method we can use for fitting high-dimensional regression models. It also involves a tuning parameter called "lambda," and **larger values of lambda result in simpler fitted models**. Use the `glmnet` package to fit a ridge regression model on the same data as in the previous part. Hint: read about the `alpha` input to the `glmnet` function in the documentation.
+
+\* *For the mathematically curiouos*
+
+$$
+\hat{\beta}_{\lambda} = {\arg\min}_{\beta} \left \{ \sum_{i=1}^n \left ( y_i - \beta_0 - \sum_{j=1}^p \beta_j x_{i,j}  \right )^2 + \lambda \sum_{j=1}^p \beta_j^2 \right \}
+$$
+
+**Question:** why don't we apply shrinkage to the intercept?
+
+**Answer:** We want to shrink the estimated association of each variable with the response; however, we do not want to shrink the intercept, which is simply a measure of the mean value of the response.
+
+
+```{r message = FALSE}
+lambda_seq <- 10**(-10:3)
+model_ridge <- glmnet(X, y, intercept = FALSE, alpha = 0, lambda = lambda_seq)
+```
+
+What does plotting the model object show? Read the documentation for `plot.glmnet`; how will the plot chnage if we set the `xvar` varaible to somthing else? 
+
+```{r}
+plot(model_ridge, xvar = "lambda")
+```
+
+## Estimation error
+
+Compute the mean-squared error of the coefficient estimates at different values of lambda. Plot the values. 
+
+```{r}
+ridge_params_regression_mse <- data.frame(
+  mse = apply(model_ridge$beta, 2, function(bb) mean((beta - bb)**2)),
+  lambda = log(model_ridge$lambda)
+)
+
+ridge_params_regression_mse
+ggplot(ridge_params_regression_mse, aes(y = mse, x = lambda)) + 
+  geom_point()
+```
+
+## Prediction error
+
+Compute predictions using the estimated coefficients and the mean-squared prediction error at different values of lambda
+
+```{r}
+ridge_predictions <- predict(model_ridge, newx = X)
+
+ridge_predictions_mse <- data.frame(
+  mse = apply(ridge_predictions, 2, function(yy) mean((yy-y)**2)), 
+  lambda = log(model_ridge$lambda)
+)
+
+ridge_predictions_mse
+ggplot(data = ridge_predictions_mse, aes(y = mse, x = lambda)) + 
+  geom_point()
+```
+
+
+
+## Discussion
+
+#### In a real data analysis (rather than simulation), which of the above things could we not compute, and why?
+
+#### How do the results change depending on lambda?
+
+#### How do the results change depending on dimension? (e.g. if p > n)
+
+# Overfitting to variance and ID generalisation
+
+Generate a new sample from the same distribution (which things stay fixed?)
+
+```{r}
+X_new_ID <- matrix(rnorm(nn*pp), nrow = nn)
+ee_new_ID <- rnorm(nn)
+y_new_ID <- X_new_ID %*% beta + ee_new_ID
+```
+
+Calculate the prediction error on this new sample at different values of lambda. 
+
+```{r}
+ridge_predictions_ID <- predict(model_ridge, newx = X_new_ID)
+
+ridge_predictions_mse_ID <- data.frame(
+  mse = apply(ridge_predictions_ID, 2, function(yy) mean((yy-y_new_ID)**2)), 
+  lambda = log(model_ridge$lambda)
+)
+
+ridge_predictions_mse_ID
+ggplot(data = ridge_predictions_mse_ID, aes(y = mse, x = lambda)) + 
+  geom_point()
+```
+
+## Discussion
+
+
+#### Compare to prediction error on the original (training) sample
+
+#### How do these compare if we increase the original (training) sample size?
+
+# "Overfitting to bias" and OOD generalisation
+
+There are many ways to change the distribution for a new sample... 
+
+#### Change beta (maybe add a small amount of noise)
+
+Try adding a small ammount of uniform noise to $\beta$
+
+```{r}
+X_new_OOD <- matrix(rnorm(nn*pp), nrow = nn)
+ee_new_OOD <- rnorm(nn)
+
+beta_new_OOD <- beta + runif(pp)
+
+y_new_OOD <- X_new_OOD %*% beta_new_OOD + ee_new_OOD
+```
+
+Calculate the prediction error on this new sample at different values of lambda. 
+
+```{r}
+ridge_predictions_OOD <- predict(model_ridge, newx = X_new_OOD)
+
+ridge_predictions_mse_OOD <- data.frame(
+  mse = apply(ridge_predictions_OOD, 2, function(yy) mean((yy-y_new_OOD)**2)), 
+  lambda = log(model_ridge$lambda)
+)
+
+ridge_predictions_mse_OOD
+ggplot(data = ridge_predictions_mse_OOD, aes(y = mse, x = lambda)) + 
+  geom_point()
+```
+
+If the magnitude of the noise is small compared to the $\beta$'s we will can claim to be in the setting $F \approx F'$.
+
+#### Change the distribution of X and/or the errors
+
+Let the predictors and error term follow a $t$ distribution with $\nu = 5$ degrees of freedom. 
+
+```{r}
+X_new_OOD <- matrix(rt(nn*pp, df = 10), nrow = nn)
+ee_new_OOD <- rt(nn, df = 10)
+y_new_OOD <- X_new_OOD %*% beta + ee_new_OOD
+```
+
+```{r}
+ridge_predictions_OOD <- predict(model_ridge, newx = X_new_OOD)
+
+ridge_predictions_mse_OOD <- data.frame(
+  mse = apply(ridge_predictions_OOD, 2, function(yy) mean((yy-y_new_OOD)**2)), 
+  lambda = log(model_ridge$lambda)
+)
+
+ridge_predictions_mse_OOD
+ggplot(data = ridge_predictions_mse_OOD, aes(y = mse, x = lambda)) + 
+  geom_point()
+```
+
+Note that a $t$ distribution with $\nu = 5$ degrees of freedom is very close to a standard normal. We are again in the setting $F \approx F'$. 
+
+![hello](t_distribution_v_normal.png)
+
+
+## Discussion
+
+#### How do these compare if we increase the original (training) sample size?
+
+#### What are the similarities/differences in your conclusions between ID/OOD generalisation?
+
+# Comparison with gradient descent
+
+Copy/paste your gradient descent code for ordinary linear regression here. Does it converge? If so, to what? Check distance (MSE) from the true beta and from the ridge estimate of beta (at different values of lambda, or a very small lambda close to zero)
+
+First define the loss functions again: 
+
+```{r}
+least_squares_loss <- function(X, Y, beta)
+{
+  #' Returns least squares loss
+  #'
+  #'@param X matrix, dim = (n x p)
+  #'@param y vector, dim = (n x 1)
+  #'@param beta vector, dim = (p x 1)
+  
+  sum((Y - X %*% beta)**2)
+
+}
+
+least_squares_gradient <- function(X,Y, beta)
+{
+  #' Returns least squares gradient
+  #'
+  #'@param X matrix, dim = (n x p)
+  #'@param y vector, dim = (n x 1)
+  #'@param beta vector, dim = (p x 1)
+  
+  -2 * t(X) %*% (Y - X %*% beta)
+
+}
+```
+
+Now write the code for gradient descent with stopping criteria. 
+
+```{r}
+step_size <- .001
+init_step <- .001
+min_decrease <- 1
+max_steps <- 1000
+
+loss_values <- c()
+all_steps <- 1:2
+n_steps <- 2
+
+beta_0 <- rep(0, pp)
+
+prev_loss <- least_squares_loss(X, y, beta_0)
+prev_grad <- least_squares_gradient(X,y, beta_0)
+
+next_beta <- beta_0 - init_step * prev_grad
+next_loss <- least_squares_loss(X,y, next_beta)
+
+prev_beta <- next_beta
+loss_values <- c(prev_loss, next_loss)
+
+while (prev_loss - next_loss > min_decrease & n_steps < max_steps) 
+{
+  next_grad <- least_squares_gradient(X,y, prev_beta)
+  next_beta <- prev_beta - step_size * next_grad
+  
+  prev_beta <- next_beta 
+  prev_loss <- next_loss
+  
+  loss_values <- c(loss_values, next_loss)
+  n_steps <- n_steps + 1
+  all_steps <- c(all_steps, n_steps)
+  next_loss <- least_squares_loss(X, y, next_beta)
+}
+```
+
+Check distance (MSE) from the true beta and from the ridge estimate of beta (at different values of lambda, or a very small lambda close to zero)
+
+```{r}
+ridge_params_regression_mse <- data.frame(
+  mse = apply(model_ridge$beta, 2, function(bb) mean((next_beta - bb)**2)),
+  lambda = log(model_ridge$lambda)
+)
+
+ridge_params_regression_mse
+```
