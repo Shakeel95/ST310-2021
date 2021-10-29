@@ -9,7 +9,7 @@
 
 1. Convince yourself that the primal and dual SMV problems are equivalent (see ISLR 9.1.4-)
 2. Show that fitted SVM parameter can be writted as a linear combination of features (predictors)
-3. Show that fitted SVM parameter can be writted as a linear combination of features
+3. Show that fitted SVM parameter can be writted as a *sparse* linear combination of features
 
 ---
 
