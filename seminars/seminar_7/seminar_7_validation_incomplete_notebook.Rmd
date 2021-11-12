@@ -1,0 +1,225 @@
+---
+title: "Week 7 seminar: validation experiments"
+author:
+  - Prof. Joshua Loftus (lecturer)
+  - Shakeel GAvioli-Akilagun (GTA)
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse) 
+library(broom)     
+library(modelr)    
+library(glmnet)  
+library(modeldata)
+
+```
+
+## Load the attrition dataset
+
+```{r}
+data("attrition")
+dim(attrition)
+```
+
+
+#### Preprocess attrition data
+
+We will use the `glmnet` package to fit penalized linear models. Unfortunately the package is not good at dealing with categorical variables so we will have to do some pre-processing. 
+
+```{r}
+x_variables  <- attrition %>% 
+  dplyr::select(-Attrition) 
+
+XX <- model.matrix(~. -1, data = x_variables) 
+YY <- attrition %>% pull(Attrition)
+```
+
+Since this dataset has a binary outcome we'll use penalized logistic regression instead of penalized linear regression, we do this with the `family = "binomial"` option in the `glmnet` function below. 
+
+## Split data into training/test sets
+
+#### Use the `sample()` and `setdiff()` functions to split the data into two random subsets
+
+**Important** since we will be introducing some randomness set a seed to make sure your work is reproducible. 
+
+```{r}
+set.seed()
+```
+
+**Question** Why use random subsets instead of 1,...k, and k+1,...n?
+
+**Question** What is the trade-off in choosing the train/test split, why might we want more training data than test data?  
+
+```{r}
+train_test_split <- 
+nn <- length(Y)
+
+train <- 
+test <-
+```
+
+
+```{r}
+X_train <- XX[train, ]
+X_test <- XX[test, ]
+
+Y_train <- YY[train]
+Y_test <- YY[test]
+```
+
+
+## Regularized regression models
+
+We will fit penalized logistic regressions with a ridge penalty on the coefs: 
+
+$$
+\hat{\beta}_{\text{ridge}}^\lambda = \arg\min \left \{  \ell (\beta) + \lambda \sum_{j=1}^p \beta_j^2 \right \}
+$$
+
+And with a lasso penalty on the coefs: 
+
+$$
+\hat{\beta}_{\text{lasso}}^\lambda = \arg\min \left \{ \ell(\beta) + + \lambda \sum_{j=1}^p |\beta_j| \right \} 
+$$
+
+The `glmnet` package also allows us to use an elastic net penalty, which lies somewhere between the two: 
+
+$$
+\hat{\beta}_{\text{elastic net}}^\lambda = \arg\min \left \{ \ell(\beta) + \lambda \sum_{j=1}^p \left ( \alpha \beta_j^2 + (1-\alpha) |\beta_j| \right ) \right \}
+$$
+
+#### Fit models using `glmnet` on the **training data** for lasso and ridge regression (see `?glmnet`)
+
+```{r}
+
+```
+
+
+#### Choose some arbitrary value of `lambda` and check the `coef()` of the resulting models, compare the coefficient estimates between lasso and ridge (hint: check `?coef.glmnet`)
+
+```{r}
+
+```
+
+
+#### At the same value of `lambda` above, calculate the accuracy of prediction on both training and test data (use mean-squared error for numeric outcome and classifications rate for binary, use the option `predict(..., type = "class")` for binary outcome)
+
+Training accuracy for ridge
+
+```{r}
+
+```
+
+Test accuracy for ridge
+
+```{r}
+
+```
+
+
+Training accuracy for lasso
+
+```{r}
+
+```
+
+Test accuracy for lasso
+
+```{r}
+
+```
+
+
+#### Plot the fitted coefficients as a function of `lambda`
+
+```{r}
+
+```
+
+
+#### Plot accuracy on training and test data as a function of `lambda`
+
+First calculate the errors on training and test data. 
+
+```{r}
+
+```
+
+Now plot your errors. 
+
+```{r}
+
+```
+
+#### Repeat for lasso
+
+```{r}
+yhats_train <- predict(lasso_fit, type = "class", newx = X_train)
+yhats_test <- predict(lasso_fit, type = "class", newx = X_test)
+
+lasso_errors <- data.frame(
+  train_error = colMeans(yhats_train != Y_train),
+  test_error = colMeans(yhats_test != Y_test),
+  lambda = lasso_fit$lambda
+) 
+```
+
+```{r}
+ggplot(lasso_errors, aes(lambda, train_error)) +
+ geom_line(color = "red") +
+ geom_line(aes(y = test_error), color = "blue") + 
+  scale_x_log10()
+```
+
+#### What do you notice about these plots? Similarities and differences?
+
+- Test error is almost always higher than training error? 
+- Minima allays attained at the same level of regularization? 
+
+#### For lasso, examine `coef()` at the value of `lambda` which minimizes test error
+
+You can roughly guess the value of `lambda` by looking at the plot. What is the sparsity (number/proportion of nonzero coefficients)?
+
+
+```{r}
+
+```
+
+How about for the ridge regression (this should be obvious)? 
+
+```{r}
+
+```
+
+## Cross-validation
+
+#### Use the `cv.glmnet` function to iterate the above process over several train/test splits and automatically find the value of `lambda` minimizing test accuracy (see `?cv.glmnet`)
+
+Do this for lasso 
+
+```{r}
+lasso_cv <- cv.glmnet(X_train, Y_train, family = "binomial")
+```
+
+#### Compare the values of `lambda.min` and `lambda.1se` (see `?cv.glmnet`)
+
+```{r}
+lmin <- lasso_cv$lambda.min
+l1se <- lasso_cv$lambda.1se
+c(lmin, l1se)
+```
+
+#### Compute the test error accuracy at these two values
+
+Test accuracy for lasso
+
+```{r}
+
+```
+
+```{r}
+
+```
