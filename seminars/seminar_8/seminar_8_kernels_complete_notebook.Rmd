@@ -1,0 +1,319 @@
+---
+title: "Week 8 seminar: nonlinearity with kernel methods"
+author:
+  - Prof. Joshua Loftus (lecturer)
+  - Shakeel GAvioli-Akilagun (GTA)
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)  
+library(tidymodels) 
+library(modelr)     
+library(kernlab)    
+library(gapminder)  
+```
+
+**Important** We will be doing some simulations, set a random seed so your work is reproducible. 
+
+```{r}
+set.seed(42)
+```
+
+# Non-linear classification toy example
+
+#### Run the complete code chunks below, read the comments
+
+#### Experiment with changing the data generation process and re-running them all in the same order
+
+## 2d non-linear classification data
+
+Assign functions with zero set that defines the perfect (Bayes) decision boundary:
+
+```{r}
+f1 <- function(x1, x2) abs(x1*x2) - x1
+
+f2 <- function(x1, x2) (x1^2 + x2^2 - 1)^3 - x1^2*x2^3
+
+f3 <- function(x1, x2) x**2 + y**2 - 1
+```
+
+Generate some training data where your training data should take the form of a data frame with columns: 
+
+ * `x1` and `x2` for the predictors
+ * `seperable` for class labels if the classes were perfectly separable
+ * `yy` for class labels with some noise
+
+```{r}
+nn <- 500
+
+train <- data.frame(
+  x1 = 1.5*(1 - 2*runif(nn)),
+  x2 = 1.5*(1 - 2*runif(nn))
+) %>% 
+  mutate(
+    separable = f2(x1,x2) > 0,
+    yy = factor(rbinom(nn, 1, 9/10 - (8/10) * as.numeric(separable)))
+  )
+```
+
+### Plot of training data
+
+```{r}
+train_plot <-
+  ggplot(train, aes(x1, x2)) +
+  geom_point(aes(color = yy)) 
+  
+train_plot
+```
+
+### Plot of Bayes decision boundary
+
+We first generate an evenly spaced grid for with which to plot the boundary. 
+
+```{r}
+decision_surface <- 
+  data_grid(train,
+          x1 = seq_range(x1, 300, expand = .05),
+          x2 = seq_range(x2, 300, expand = .05)) %>%
+  mutate(z = f2(x1, x2))
+```
+
+We may use `geom_contour` to plot the contours of the function $f: (x_1, x_2) \mapsto R$ over our data. 
+
+```{r}
+boundary_plot <-
+  train_plot +
+  geom_contour(
+    data = decision_surface,
+    aes(x1, x2, z=z),
+    color = "black")
+
+boundary_plot
+```
+
+### How well does linear classification do?
+
+Also try changing the formula to fit a logistic regression model with non-linear transformations of the predictors
+
+```{r}
+logit_model <-  
+  glm(yy ~ x1 + x2 + poly(x1,2) * poly(x2,2), family = "binomial", data = train)
+
+logit_surface <- logit_model %>%
+   augment(type.predict = "response", newdata = decision_surface)
+```
+
+Plot the decision boundary of for the logistic regression. 
+
+```{r}
+boundary_plot +
+  geom_contour(
+    data = logit_surface,
+    aes(x1, x2, z = .fitted),
+    size = 1,
+    color = "blue",
+    bins = 2)
+```
+
+# Kernel SVM
+
+Use the `ksvm` function from the `kernlab` package to fit a non-linear classification models and plot them (install the package if you have not already). For extra practice you may... 
+
+* Try different kinds of kernels
+* Experiment with cost/complexity parameters
+* Change the decision boundary function, noise level, sample size, etc, in the training data
+
+```{r}
+k_fit <- ksvm(yy ~ x2 + x1,
+                  kernel = "rbfdot",
+                  kpar = list(sigma = 2),
+                  C = 20,
+                  data = train)
+k_fit
+```
+
+#### Plot decision regions, compare to original data. What's different?
+
+The plot below only shows the support vectors, not the full dataset
+
+```{r}
+plot(k_fit)
+```
+
+#### Use the `nSV()` and `alphaindex()` functions to find the number of support vectors and their indexes in the training data. What proportion of the training data is used by the classifier?
+
+```{r}
+nSV(k_fit)
+alphaindex(k_fit)
+```
+
+Find the fraction of "active" data:
+
+```{r}
+nSV(k_fit) / nrow(train)
+```
+
+
+# 1-d smooth regression example
+
+#### Generate a one-dimensional example with a non-linear relationship
+
+We will draw predictors from a Beta distribution. The `beta` distribution is closer to uniform if `s2` is closer to 1, so increasing `s2` creates a region of the predictor space that has relatively less training data. 
+
+![](beta_distribution.png)
+
+```{r}
+ff <- function(x) sin(4*pi*x)
+nn <- 400
+s1 <- 1
+s2 <- 3
+noise_sd <- .4
+
+train1d <- 
+  data.frame(
+    xx = rbeta(nn, s1, s2)
+    ) %>%
+  mutate(yy = ff(xx) + rnorm(nn, sd = noise_sd))
+```
+
+Generate some test data from the same distribution (*ID*): 
+
+```{r}
+test1d_ID <- 
+  data.frame(
+    xx = rbeta(nn, s1, s2)
+    ) %>%
+  mutate(yy = ff(xx) + rnorm(nn, sd = noise_sd))
+```
+
+Generate some test data where predictors are drawn from a slightly different beta distribution and add a slowly varying function to the CEF (*OD*). 
+
+```{r}
+test1d_OOD <- 
+    data.frame(
+    xx = rbeta(nn, s1, s2/2) # more data with larger x values
+    ) %>%
+  mutate(yy = ff(xx) + .1*cos(4*pi*xx) + rnorm(nn, sd = noise_sd))
+```
+
+Finally, make a grid of training points. 
+
+```{r}
+train1d_grid <- 
+  data_grid(train1d,
+          xx = seq_range(c(.05, .95), 2000, expand = .05))
+```
+
+#### Read `?geom_smooth` and change the `span` manually for a better fit
+
+```{r}
+ggplot(train1d, aes(xx, yy)) + 
+  geom_point() +
+  geom_smooth(span = .4)
+```
+
+### Linear regression with a polynomial transform of x
+
+```{r}
+model_lm <- lm(yy ~ poly(xx, 5), data = train1d)
+
+augment(model_lm,
+        newdata = train1d_grid) %>%
+  ggplot(aes(xx, yy)) +
+  geom_point(data = train1d) +
+  geom_line(aes(y = .fitted))
+```
+
+### Kernel regression
+
+Use the `ksvm` function and `kernelMatrix` functions to fit non-linear kernel regression models and plot the predictions on `train1d_grid`
+
+
+```{r}
+k_1fit <- ksvm(yy ~ xx,
+     kernel = rbfdot(sigma = 10),
+     data = train1d)
+k_1fit
+
+     #kernel = polydot(degree = 5),
+
+```
+
+```{r}
+svm_predictions <- train1d_grid %>%
+      mutate(.fitted = predict(k_1fit, newdata = train1d_grid))
+
+train1d %>%
+  ggplot(aes(xx, yy)) +
+  geom_point(data = train1d) +
+  geom_line(
+    data = svm_predictions,
+    aes(y = .fitted))
+```
+
+### Comparisons
+
+```{r}
+fits <- list(
+augment(model_lm,
+        newdata = test1d_ID) %>%
+  mutate(generalization = "ID", model = "lm"),
+
+test1d_ID %>%
+      mutate(.fitted = predict(k_1fit, newdata = test1d_ID),
+             generalization = "ID", model = "ksvm"),
+
+augment(model_lm,
+        newdata = test1d_OOD) %>%
+  mutate(generalization = "OOD", model = "lm"),
+
+test1d_OOD %>%
+      mutate(.fitted = predict(k_1fit, newdata = test1d_OOD),
+             generalization = "OOD", model = "ksvm")) 
+
+map_dfr(fits, rbind) %>%
+  mutate(resid = yy - .fitted) %>%
+  group_by(generalization, model) %>%
+  summarize(MSE = mean(resid^2), .groups = "keep")
+```
+
+
+#### What happens to the local accuracy for larger values of x if `s2` is increased? Why?
+
+There is relatively less training data at larger values of x, so the local accuracy decreases. This is due to **higher variability** of the model in that region
+
+(Note that this is less of a problem for models which are less flexible)
+
+#### What happens as `sd` is increased? Or if `n` is decreased? How is this different from the previous question?
+
+The variability increases everywhere, so the accuracy is lower everywhere
+
+(Note that our error model has constant variance, a common simplifying assumption that can be importantly wrong in practice. If it is wrong then there may be regions of predictor space where the error level is relatively higher even if the local sample size is high)
+
+#### What happens if you increase `sigma` in `rbfdot`?
+
+The model becomes more flexible, so its fit has higher variance. If there are regions with low local sample size then a highly flexible fit may have poor local accuracy there
+
+#### How would ID generalization vs OOD vary depending on the above trade-offs? Consider OOD for values of x slightly both outside the left and right range of the training data
+
+ID generalization depends on variability, so everything we previously said about "accuracy" applies directly. Lower (local) noise levels or higher (local) sample sizes allow more flexible fits without suffering from too much variability
+
+OOD generalization will depend (locally) on how the model is different (in that region). If it's the same function `f` extending outside the range of the original data (i.e. extrapolation) then OOD generalization might be (relatively) easy on the left side of the plot and difficult on the right side. 
+
+
+## Optional extra practice: gapminder
+
+Fit a kernel regression model on `gapminder` data, plot the predictions, calculate the MSE
+
+```{r}
+
+```
+
+Calculate the MSE using a different year as test data to check OOD performance
+
+```{r}
+
+```
+
