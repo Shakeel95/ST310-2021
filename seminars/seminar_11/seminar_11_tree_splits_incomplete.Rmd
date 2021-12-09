@@ -1,0 +1,175 @@
+---
+  title: "Week 11 seminar: tree splitting rules"
+author:
+  - Prof. Joshua Loftus (lecturer)
+- Shakeel GAvioli-Akilagun (GTA)
+output: pdf_document
+---
+  
+  ```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+library(tidyverse)  
+library(modelr)     
+library(gapminder) 
+```
+
+**Important:** we will be working with simulated data so set a seed to make sure your work is reproducible. 
+
+```{r}
+set.seed(42)
+```
+
+## Sorting preliminaries
+
+```{r}
+X <- runif(10)
+Y <- X + rnorm(10)
+qplot(X, Y)
+```
+
+Check the documentation for `?sort` and `?order` and then write code to output the values of `Y` sorted according to the order of `X`
+
+```{r}
+
+```
+
+## Within-leaf averages
+
+Below is some code that computes the average values of `Y` above and below a given split point
+
+```{r}
+x_split <- 0.5
+
+c(mean(Y[X <= x_split]),
+  mean(Y[X > x_split]))
+```
+
+#### How much computation is required if we change the value of `x_split`?
+
+
+
+#### Write code that sorts the data on `X` only once, and then, taking each `X` value as a split point consecutively, computes the average `Y` values above and below that split point
+
+```{r}
+Y_sorted <- ...
+
+nn <- length(X)
+
+for (ii in 1:(nn-1)) {
+  print(
+    ...
+  )
+}
+```
+
+#### How can we use this to decide the split point for a regression tree?
+
+
+
+#### How could we change this code to guarantee a minimum number of observations in each leaf?
+
+
+## Regression Trees
+
+Write a function that inputs a single numeric predictor and outcome, and outputs a splitting point that achieves the greatest reduction in RSS
+
+```{r}
+tree_split <- function(xx, yy, min.obs = 10)
+{
+  #' Tree splitting rule
+  #'
+  #'@param xx vecetor, covariates
+  #'@param yy vector, responses
+  #'@param min.obs numeric 
+
+}
+```
+
+#### Try your function out on some simulated data. 
+
+```{r}
+nn <- 1000
+
+mixture_ids <- rbinom(nn, 1, .5)
+
+xx <- rnorm(nn) + 3*mixture_ids
+yy <- rnorm(nn) + 3*mixture_ids
+
+xx <- c(xx, rnorm(nn/2, mean = -2))
+yy <- c(yy, rnorm(nn/2, mean = 5))
+
+three_clusters_scatter <- ggplot(
+  data = data.frame(x = xx, y = yy),
+  aes(xx,yy)) + 
+  geom_point()
+```
+
+Try producing just one split and plot the results
+
+```{r}
+
+```
+
+Now split the data and apply the function again on each subset
+
+```{r}
+
+```
+
+
+## Test the function on some `gapminder` data
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+
+## Categorical predictor
+
+Write a function to calculate the Ginin index. 
+
+```{r}
+gini_index <- function(yy)
+{
+  #' Calculates the Gini index
+  #'
+  #'@param yy factor
+  
+
+}
+```
+
+Write a function to calculate the cross entropy or deviance
+
+```{r}
+cross_entropy <- function()
+{
+  #' Calculates cross entropy or deviance
+  #'
+  #'@param yy factor
+  
+
+}
+```
+
+Now, re-write the original tree split function so that a custom loss function, for example the ones you have written above, can used to decide on the best split. 
+
+```{r}
+tree_split <- function(xx, yy, loss.function, min.obs = 10)
+{
+  #' Tree splitting rule
+  #'
+  #'@param xx vecetor, covariates
+  #'@param yy vector, responses
+  #'@param loss.function fucntion
+  #'@param min.obs numeric 
+  
+}
+```
