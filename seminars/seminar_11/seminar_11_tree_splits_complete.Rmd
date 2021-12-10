@@ -1,0 +1,287 @@
+---
+title: "Week 11 seminar: tree splitting rules"
+author:
+  - Prof. Joshua Loftus (lecturer)
+  - Shakeel GAvioli-Akilagun (GTA)
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+library(tidyverse)  
+library(modelr)     
+library(gapminder) 
+```
+
+**Important:** we will be working with simulated data so set a seed to make sure your work is reproducible. 
+
+```{r}
+set.seed(42)
+```
+
+## Sorting preliminaries
+
+```{r}
+X <- runif(10)
+Y <- X + rnorm(10)
+qplot(X, Y)
+```
+
+Check the documentation for `?sort` and `?order` and then write code to output the values of `Y` sorted according to the order of `X`
+
+```{r}
+Y[order(X)]
+```
+
+## Within-leaf averages
+
+Below is some code that computes the average values of `Y` above and below a given split point
+
+```{r}
+x_split <- 0.5
+
+c(mean(Y[X <= x_split]),
+  mean(Y[X > x_split]))
+```
+
+#### How much computation is required if we change the value of `x_split`?
+
+Have to re-sort the data to find the indexes of `Y` corresponding to `X` values above/below the new split point
+
+(Sorting a list of `k` items requires--in the worst case--an order of `k*log(k)` operations)
+
+#### Write code that sorts the data on `X` only once, and then, taking each `X` value as a split point consecutively, computes the average `Y` values above and below that split point
+
+```{r}
+x_order <- order(X)
+Y_sorted <- Y[x_order]
+
+nn <- length(X)
+
+for (ii in 1:(nn-1)) {
+  print(
+    c(mean(Y_sorted[1:ii]), mean(Y_sorted[(ii+1):nn]))
+  )
+}
+```
+
+#### How can we use this to decide the split point for a regression tree?
+
+We can use the average `Y` values as predictions within each leaf, compute the RSS, and choose the split point giving the lowest RSS
+
+#### How could we change this code to guarantee a minimum number of observations in each leaf?
+
+Instead of making the loop go from 1 to `(n-1)`, we can make it start at `min.obs` and end at `(n - min.obs)`
+
+
+## Regression Trees
+
+Write a function that inputs a single numeric predictor and outcome, and outputs a splitting point that achieves the greatest reduction in RSS
+
+```{r}
+tree_split <- function(xx, yy, min.obs = 10)
+{
+  #' Tree splitting rule
+  #'
+  #'@param xx vecetor, covariates
+  #'@param yy vector, responses
+  #'@param min.obs numeric 
+  
+  xx_order <- order(xx)
+  
+  XX <- xx[xx_order]
+  YY <- yy[xx_order]
+  
+  nn <- length(xx)
+  
+  RSSs <- rep(Inf,nn-1)
+  
+  for (ii in min.obs:(nn-min.obs))
+  {
+    Y_left <- YY[1:ii]
+    Y_right <- YY[(ii+1):nn]
+    RSSs[ii] <- sum((Y_left - mean(Y_left))**2) + sum((Y_right - mean(Y_right))**2)
+  }
+  
+  XX[which.min(RSSs)]
+}
+```
+
+#### Try your function out on some simulated data. 
+
+```{r}
+nn <- 1000
+
+mixture_ids <- rbinom(nn, 1, .5)
+
+xx <- rnorm(nn) + 3*mixture_ids
+yy <- rnorm(nn) + 3*mixture_ids
+
+xx <- c(xx, rnorm(nn/2, mean = -2))
+yy <- c(yy, rnorm(nn/2, mean = 5))
+
+three_clusters_scatter <- ggplot(
+  data = data.frame(x = xx, y = yy),
+  aes(xx,yy)) + 
+  geom_point()
+```
+
+Try producing just one split and plot the results
+
+```{r}
+split_point_1 <- tree_split(xx,yy)
+
+three_clusters_scatter + 
+  geom_vline(xintercept = split_point_1)
+```
+
+Now split the data and apply the function again on each subset
+
+```{r}
+ind_left <- which(xx <= split_point_1)
+ind_right <- setdiff(1:length(xx), ind_left)
+
+split_point_2 <- tree_split(xx[ind_left], yy[ind_left])
+split_point_3 <- tree_split(xx[ind_right], yy[ind_right])
+
+three_clusters_scatter + 
+  geom_vline(xintercept = split_point_1, colour = "red") +
+  geom_vline(xintercept = split_point_2, colour = "green") +
+  geom_vline(xintercept = split_point_3, colour = "blue") 
+```
+
+
+## Test the function on some `gapminder` data
+
+```{r}
+gm2007 <- gapminder %>% filter(year == 2007)
+split2007 <- with(gm2007, tree_split(gdpPercap, lifeExp))
+split2007
+```
+
+```{r}
+gm2007 %>%
+  ggplot(aes(gdpPercap, lifeExp)) + 
+  geom_point() +
+  geom_vline(xintercept = split2007)
+```
+
+
+## Categorical predictor
+
+Write a function to calculate the Ginin index. 
+
+```{r}
+gini_index <- function(yy)
+{
+  #' Calculates the Gini index
+  #'
+  #'@param yy factor
+  
+  KK <- nlevels(yy)
+  nn <- length(yy)
+  
+  yy_tab <- table(yy)
+  res <- numeric()
+  
+  for (kk in 1:KK) res[kk] <- (yy_tab[kk] / nn) * (1 - (yy_tab[kk] / nn))
+  
+  return(sum(res))
+}
+```
+
+Write a function to calculate the cross entropy or deviance
+
+```{r}
+cross_entropy <- function(yy)
+{
+  #' Calculates cross entropy or deviance
+  #'
+  #'@param yy factor
+  
+  KK <- nlevels(yy)
+  nn <- length(yy)
+  
+  yy_tab <- table(yy)
+  res <- numeric()
+  
+  for (kk in 1:KK) res[kk] <- (yy_tab[kk] / nn) * log(yy_tab[kk] / nn)
+  
+  return(-sum(res))
+}
+```
+
+Now, re-write the original tree split function so that a custom loss function, for example the ones you have written above, can used to decide on the best split. 
+
+```{r}
+tree_split <- function(xx, yy, loss.function, min.obs = 10)
+{
+  #' Tree splitting rule
+  #'
+  #'@param xx vecetor, covariates
+  #'@param yy vector, responses
+  #'@param loss.function fucntion
+  #'@param min.obs numeric 
+  
+  xx_order <- order(xx)
+  
+  XX <- xx[xx_order]
+  YY <- yy[xx_order]
+  
+  nn <- length(xx)
+  
+  RSSs <- rep(Inf,nn-1)
+  
+  for (ii in min.obs:(nn-min.obs))
+  {
+    Y_left <- YY[1:ii]
+    Y_right <- YY[(ii+1):nn]
+    RSSs[ii] <- loss.function(Y_left) + loss.function(Y_right)
+  }
+  
+  XX[which.min(RSSs)]
+}
+```
+
+
+#### A small example... 
+
+```{r}
+nn <- 500
+
+ff <- function(xx)
+{
+  nn <- length(xx)
+  
+  res <- numeric(nn)
+  
+  for (ii in 1:nn) res[ii] <- 0 + 1 * (xx[ii] < 0.3) | (xx[ii] > 0.7)
+  
+  return(res)
+}
+
+
+classes.by.region <- data.frame(
+  xx = runif(nn)
+) %>% 
+  mutate(
+    separable = ff(xx),
+    yy = factor(rbinom(nn, 1, 90/100 - (80/100) * as.numeric(separable)))
+  )
+```
+
+
+```{r}
+ggplot(classes.by.region, aes(y = yy, x = xx)) + 
+  geom_point()
+```
+
+```{r}
+tree_split(xx = classes.by.region$xx, yy = classes.by.region$yy, loss.function = gini_index)
+```
+
+
+
