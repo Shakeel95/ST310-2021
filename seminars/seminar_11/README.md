@@ -5,7 +5,7 @@ No online register today as I have forgotten my LSE password... If you could not
 
 ### Note on the tree splitting rule with one predictor
 
-In the seminar I mentioned that our tree splitting algorithm might not perform as well as we hope because it attacks the segmentation problem *greedily*. In the first step it splits the data in half and models the CEF as a constant to the lefty and right of the split - i.e. the wrong functional form is assumed for at least one of the two segments.
+In the seminar I mentioned that our tree splitting algorithm might not perform as well as we hope because it attacks the segmentation problem *greedily*. In the first step it splits the data in half and models the CEF as a constant to the left and right of the split - i.e. the wrong functional form is assumed for at least one of the two segments.
 
 This is only a problem in the *noisy* settings. Indeed if the true CEF is piecewise constant and no additive noise is present we will always recover the correct segments. Try tweaking the following code to convince yourself:
 
